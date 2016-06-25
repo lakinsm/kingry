@@ -87,3 +87,58 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Large files
+data/*
+analyses/*
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Ignore the build and lib dirs
+cpp_code/build
+
+# Ignore any executables
+cpp_code/bin/*
+
+# Ignore Mac specific files
+.DS_Store
+
+# Ignore IDE files
+cpp_code/.idea/*
+cpp_code/CMakeLists.txt
+
+# Ignore files we produce in the pipeline
+cpp_code/test/*.cm
+cpp_code/test/*.lm
+cpp_code/test/*.fm*
+cpp_code/test/*.gh
+
+
