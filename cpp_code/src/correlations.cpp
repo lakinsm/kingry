@@ -12,14 +12,14 @@
 #include <cmath>
 
 template<typename Vector>
-std::vector<float> rank(const Vector& v)
+std::vector<double> rank(const Vector& v)
 {
     std::vector<std::size_t> w(v.size());
     std::iota(begin(w), end(w), 0);
     std::sort(begin(w), end(w),
               [&v](std::size_t i, std::size_t j) { return v[i] < v[j]; });
 
-    std::vector<float> r(w.size());
+    std::vector<double> r(w.size());
     for (std::size_t n, i = 0; i < w.size(); i += n)
     {
         n = 1;
@@ -35,17 +35,13 @@ std::vector<float> rank(const Vector& v)
     return r;
 }
 
-typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor> Matrix_MxNf;
+typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor> Matrix_MxNf;
 
-inline float Sin(float &x) {
-    return std::sin(x);
-}
-
-template<class Matrix>
-float rdc_eval(Matrix &x, Matrix &y) {
-    float res;
+template<typename V>
+double rdc_eval(V &x, V &y) {
+    double res;
     int k = 20;
-    float s = (float)1 / (float)6;
+    double s = (double)1 / (double)6;
 
     //RNG for random normal
     std::random_device rd;
@@ -64,18 +60,28 @@ float rdc_eval(Matrix &x, Matrix &y) {
     //std::cout << randX << std::endl;
 
     // Step 1: Calculate the rank vectors with bias column
-    std::vector<float> vec_x;
-    std::vector<float> vec_y;
+    std::vector<double> vec_x;
+    std::vector<double> vec_y;
 
-    for(int i = 0; i < x.rows(); ++i) {
+    for(int i = 0; i < x.cols(); ++i) {
         vec_x.push_back(x(i));
         vec_y.push_back(y(i));
     }
 
+//    for( auto &z : vec_x ) {
+//        std::cout << z << ' ';
+//    }
+//    std::cout << std::endl;
+
     //std::cout << "check" << std::endl;
 
-    std::vector<float> r_x = rank(vec_x);
-    std::vector<float> r_y = rank(vec_y);
+    std::vector<double> r_x = rank(vec_x);
+    std::vector<double> r_y = rank(vec_y);
+
+//    for( auto &z : r_x ) {
+//        std::cout << z << ' ';
+//    }
+//    std::cout << std::endl;
 
     //std::cout << r_x.size() << std::endl;
     //std::cout << r_y.size() << std::endl;
@@ -85,29 +91,42 @@ float rdc_eval(Matrix &x, Matrix &y) {
     Matrix_MxNf s1_x(vec_x.size(), 2);
     Matrix_MxNf s1_y(vec_x.size(), 2);
 
+    s1_x.col(1).setOnes();
+    s1_y.col(1).setOnes();
+
     for(int i = 0; i < r_x.size(); ++i) {
         s1_x(i, 0) = r_x[i] / r_x.size();
-        s1_x(i, 1) = 1;
         s1_y(i, 0) = r_y[i] / r_y.size();
-        s1_y(i, 1) = 1;
     }
 
     //std::cout << s1_x << std::endl;
     //std::cout << s1_y << std::endl;
 
     // Step 2: Multiply s1 matrices by coeff and random normal matrix
-    Matrix_MxNf s2_x(x.rows()+1, k);
-    Matrix_MxNf s2_y(y.rows()+1, k);
+    Matrix_MxNf s2_x(r_x.size(), k);
+    Matrix_MxNf s2_y(r_y.size(), k);
     s2_x = (s/2) * (s1_x * randX);
     s2_y = (s/2) * (s1_y * randY);
 
+    //std::cout << s2_x.row(0) << std::endl;
 
-    // Step 3: Apply sine transformation
-    s2_x.unaryExpr(&Sin);
-    s2_y.unaryExpr(&Sin);
+
+    // Step 3: Apply sine transformation and add dummy column
+    Matrix_MxNf s2_x2(r_x.size(), k);
+    Matrix_MxNf s2_y2(r_y.size(), k);
+    s2_x = s2_x.unaryExpr([](double f){return std::sin(f);});
+    s2_y = s2_y.unaryExpr([](double f){return std::sin(f);});
+    s2_x.conservativeResize(s2_x.rows(), s2_x.cols()+1);
+    s2_y.conservativeResize(s2_y.rows(), s2_y.cols()+1);
+    s2_x.col(s2_x.cols()-1).setOnes();
+    s2_y.col(s2_y.cols()-1).setOnes();
+
+    //std::cout << s2_x.row(0) << std::endl;
+
+    //std::exit(0);
 
     //std::cout << s2_x << std::endl;
-    std::cout << s2_x.rows() << ' ' << s2_x.cols() << std::endl;
+    //std::cout << s2_x.rows() << ' ' << s2_x.cols() << std::endl;
 
     // Step 4: Canonical correlation using QR decomposition and the SVD
     Eigen::HouseholderQR<Matrix_MxNf> qrx(s2_x);
@@ -126,14 +145,15 @@ float rdc_eval(Matrix &x, Matrix &y) {
 }
 
 template<class Matrix>
-void calculate_rdc(Matrix &M, Matrix &data) {
+void calculate_rdc(Matrix &M, const Matrix &data) {
     // Do square indices here for openMP optimization
-#pragma omp parallel for
+//#pragma omp parallel for
     for(int m=0; m < data.rows(); ++m) {
         for(int n=0; n < data.rows(); ++n) {
             if(n <= m) {
-                // TODO: Write rdc_eval()
-                //M(m,n) = rdc_eval(data.row(m), data.row(n));
+                double f = rdc_eval(data.row(m), data.row(n));
+                M(m,n) = f;
+                std::cout << f << std::endl;
             }
         }
     }
@@ -179,21 +199,21 @@ int main(int argc, const char *argv[]) {
     std::vector<int> lspleen = {54,55,56,57,58,59,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107};
 
     // Testing
-    Matrix_MxNf test1(100, 1);
-    Matrix_MxNf test2(100, 1);
-    for(int i = 0; i < 100; ++i) {
-        test1(i, 0) = i;
-        test2(99-i, 0) = i;
-    }
+//    Matrix_MxNf test1(1, 100);
+//    Matrix_MxNf test2(1, 100);
+//    for(int i = 0; i < 100; ++i) {
+//        test1(0, i) = i;
+//        test2(0, 99-i) = i;
+//    }
 
     //std::cout << test1 << std::endl;
     //std::cout << test2 << std::endl;
 
-    float f = rdc_eval(test1, test2);
+    //float f = rdc_eval(test1, test2);
 
-    std::cout << f << std::endl;
+    //std::cout << f << std::endl;
 
-    std::exit(0);
+    //std::exit(0);
 
     //TODO: link calculate_rdc to rdc_eval so that the below functions work
 
@@ -202,6 +222,8 @@ int main(int argc, const char *argv[]) {
     }
     calculate_rdc(results, subset);
     //output_results(M);
+
+    std::exit(0);
 
     for( int i = 0; i < 30; ++i ) {
         subset.col(i) = kingry.col(sspleen[i]);
