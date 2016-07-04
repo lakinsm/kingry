@@ -199,7 +199,7 @@ int main(int argc, const char *argv[]) {
         subset.col(i) = kingry.col(lspleen[i]);
     }
     calculate_rdc(results, subset);
-    output_results("lvs_lung_rdc.csv", results);
+    output_results("lvs_spleen_rdc.csv", results);
 
     // TODO: write a function for pearson
 
