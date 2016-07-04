@@ -11,6 +11,8 @@
 #include <random>
 #include <cmath>
 
+const static Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
+
 template<typename Vector>
 std::vector<double> rank(const Vector& v)
 {
@@ -57,8 +59,6 @@ double rdc_eval(V &x, V &y) {
         }
     }
 
-    //std::cout << randX << std::endl;
-
     // Step 1: Calculate the rank vectors with bias column
     std::vector<double> vec_x;
     std::vector<double> vec_y;
@@ -68,26 +68,8 @@ double rdc_eval(V &x, V &y) {
         vec_y.push_back(y(i));
     }
 
-//    for( auto &z : vec_x ) {
-//        std::cout << z << ' ';
-//    }
-//    std::cout << std::endl;
-
-    //std::cout << "check" << std::endl;
-
     std::vector<double> r_x = rank(vec_x);
     std::vector<double> r_y = rank(vec_y);
-
-//    std::cout << std::endl;
-//    for( auto &z : r_x ) {
-//        std::cout << z << ' ';
-//    }
-//    std::cout << std::endl;
-
-    //std::cout << r_x.size() << std::endl;
-    //std::cout << r_y.size() << std::endl;
-
-    //std::cout << "check2" << std::endl;
 
     Matrix_MxNf s1_x(vec_x.size(), 2);
     Matrix_MxNf s1_y(vec_y.size(), 2);
@@ -100,19 +82,11 @@ double rdc_eval(V &x, V &y) {
         s1_y(i, 0) = r_y[i] / r_y.size();
     }
 
-    //std::cout << std::endl << s1_x << std::endl;
-    //std::cout << s1_y << std::endl;
-
     // Step 2: Multiply s1 matrices by coeff and random normal matrix
     Matrix_MxNf s2_x(r_x.size(), k);
     Matrix_MxNf s2_y(r_y.size(), k);
     s2_x = (double)(s/2) * (s1_x * randX);
     s2_y = (double)(s/2) * (s1_y * randY);
-
-//    std::cout << s2_x.rows() << ' ' << s2_x.cols() << ' ' << s/2 << std::endl;
-//    std::cout << std::endl << randX << std::endl << std::endl;
-//    std::cout << s2_x.row(0) << std::endl;
-
 
     // Step 3: Apply sine transformation and add dummy column, then center the matrices
     s2_x = s2_x.unaryExpr([](double f){return std::sin(f);});
@@ -123,9 +97,7 @@ double rdc_eval(V &x, V &y) {
     s2_y.col(s2_y.cols()-1).setOnes();
 
     s2_x.rowwise() -= s2_x.colwise().mean();
-    //s2_x.colwise() -= s2_x.rowwise().mean();
     s2_y.rowwise() -= s2_y.colwise().mean();
-    //s2_y.colwise() -= s2_y.rowwise().mean();
 
     // Step 4: Canonical correlation using QR decomposition and SVD
     Eigen::ColPivHouseholderQR<Matrix_MxNf> qrx(s2_x);
@@ -137,16 +109,11 @@ double rdc_eval(V &x, V &y) {
     // Alternative would be using qry.rank(), but this overestimates the correlation
     Qy = qry.matrixQ() * Eigen::MatrixXd::Identity(s2_y.rows(), 4);
 
-    //std::cout << std::endl << Qx.rows() << ' ' << Qx.cols() << std::endl;
-
     Matrix_MxNf resQ(Qx.cols(), qry.rank());
     resQ = (Qx.transpose() * Qy).block(0,0,qrx.rank(),4);
 
-    //std::cout << std::endl << resQ << std::endl;
-
     Eigen::JacobiSVD<Matrix_MxNf> svd(resQ);
 
-    //std::cout << std::endl << svd.singularValues() << std::endl;
     res = svd.singularValues()(0);
     return res;
 }
@@ -185,7 +152,14 @@ void load_data(std::string &input_file, Matrix &M) {
             n++;
         }
         m++;
-        //std::cout << M.row(m) << std::endl;
+    }
+}
+
+template <class Matrix>
+void output_results(const std::string &outfile, const Matrix &M) {
+    std::ofstream ofs(outfile);
+    if(ofs.is_open()) {
+        ofs << M.format(CSVFormat);
     }
 }
 
@@ -197,64 +171,35 @@ int main(int argc, const char *argv[]) {
     Matrix_MxNf results(11599,11599);
     load_data(args.infile, kingry);
 
-    std::cout << kingry.rows() << ' ' << kingry.cols() << std::endl;
-    //std::cout << kingry.row(11598) << std::endl;
-
     Matrix_MxNf subset(11599,30);
     std::vector<int> slung = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29};
     std::vector<int> sspleen = {54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83};
     std::vector<int> llung = {0,1,2,3,4,5,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53};
     std::vector<int> lspleen = {54,55,56,57,58,59,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107};
 
-    // Testing
-
-//    for(int i = 0; i < 1000; ++i) {
-//        test1(0, i) = i;
-//        test2(0, 999-i) = i;
-//    }
-
-//    Matrix_MxNf test1(1, temp1.size());
-//    Matrix_MxNf test2(1, temp1.size());
-//
-//    for(int i = 0; i < temp1.size(); ++i) {
-//        test1(i) = temp1[i];
-//        test2(i) = temp2[i];
-//    }
-//
-//    std::cout << test1 << std::endl;
-//    std::cout << test2 << std::endl;
-//
-//    float f = rdc_eval(test1, test2);
-//
-//    std::cout << f << std::endl;
-//
-//    std::exit(0);
-
     for( int i = 0; i < 30; ++i ) {
         subset.col(i) = kingry.col(slung[i]);
     }
     calculate_rdc(results, subset);
-    //output_results(results);
-
-    std::exit(0);
+    output_results("schu_lung_rdc.csv", results);
 
     for( int i = 0; i < 30; ++i ) {
         subset.col(i) = kingry.col(sspleen[i]);
     }
     calculate_rdc(results, subset);
-    //output_results(M);
+    output_results("schu_spleen_rdc.csv", results);
 
     for( int i = 0; i < 30; ++i ) {
         subset.col(i) = kingry.col(llung[i]);
     }
     calculate_rdc(results, subset);
-    //output_results(M);
+    output_results("lvs_lung_rdc.csv", results);
 
     for( int i = 0; i < 30; ++i ) {
         subset.col(i) = kingry.col(lspleen[i]);
     }
     calculate_rdc(results, subset);
-    //output_results(M);
+    output_results("lvs_lung_rdc.csv", results);
 
     // TODO: write a function for pearson
 
