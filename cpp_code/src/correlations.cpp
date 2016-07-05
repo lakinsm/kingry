@@ -11,7 +11,7 @@
 #include <random>
 #include <cmath>
 
-const static Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
+const static Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ",", "\n");
 
 template<typename Vector>
 std::vector<double> rank(const Vector& v)
